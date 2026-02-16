@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Studiolite1</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0f0f0f;
+  color:white;
+}
+
+/* TOPO */
+header{
+  background:#c00000;
+  padding:15px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+header h2{
+  margin:0;
+}
+
+#menu{
+  font-size:26px;
+  cursor:pointer;
+}
+
+/* MENU LATERAL */
+#sidebar{
+  position:fixed;
+  top:0;
+  right:-260px;
+  width:250px;
+  height:100%;
+  background:#1a1a1a;
+  transition:0.3s;
+  padding:10px;
+}
+
+#sidebar h3{
+  text-align:center;
+}
+
+.chatItem{
+  background:#222;
+  padding:8px;
+  margin:5px;
+  border-radius:5px;
+  cursor:pointer;
+}
+
+/* CHAT */
+#chatArea{
+  padding:10px;
+  display:none;
+}
+
+#msgs{
+  height:60vh;
+  overflow-y:auto;
+  background:#181818;
+  border-radius:5px;
+  padding:10px;
+}
+
+.msgUser{color:#00ffea;}
+.msgAI{color:#ffd700;}
+
+textarea{
+  width:100%;
+  height:60px;
+  margin-top:5px;
+  border-radius:5px;
+  padding:8px;
+}
+
+button{
+  width:100%;
+  padding:12px;
+  background:red;
+  color:white;
+  border:none;
+  margin-top:5px;
+  border-radius:5px;
+}
+
+/* HOME */
+#home{
+  text-align:center;
+  margin-top:40px;
+  animation:fade 1s;
+}
+
+@keyframes fade{
+  from{opacity:0;}
+  to{opacity:1;}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h2>Studiolite1</h2>
+  <div id="menu" onclick="toggleMenu()">☰</div>
+</header>
+
+<!-- MENU -->
+<div id="sidebar">
+  <h3>Chats</h3>
+  <div id="chatList"></div>
+</div>
+
+<!-- HOME -->
+<div id="home">
+
+  <h2>Bem-vindo 😎</h2>
+
+  <button onclick="novoChat()">
+    Abrir chat Studiolite1
+  </button>
+
+</div>
+
+<!-- CHAT -->
+<div id="chatArea">
+
+<p>
+Olá como posso ajudar?<br>
+Sou uma I.A criada por 
+<span style="color:blue">Studiolite1</span>
+</p>
+
+<div id="msgs"></div>
+
+<textarea id="input" placeholder="Digite..."></textarea>
+
+<button onclick="enviar()">Enviar</button>
+
+</div>
+
+<script>
+
+let chats = JSON.parse(localStorage.getItem("chats")) || [];
+let chatAtual = null;
+
+/* MENU */
+function toggleMenu(){
+  let sb = document.getElementById("sidebar");
+
+  if(sb.style.right == "0px"){
+    sb.style.right = "-260px";
+  }else{
+    sb.style.right = "0px";
+  }
+
+  atualizarLista();
+}
+
+/* NOVO CHAT */
+function novoChat(){
+
+  chatAtual = {
+    id:Date.now(),
+    msgs:[]
+  };
+
+  chats.push(chatAtual);
+
+  salvar();
+
+  document.getElementById("home").style.display="none";
+  document.getElementById("chatArea").style.display="block";
+
+  mostrarMsgs();
+}
+
+/* LISTA */
+function atualizarLista(){
+
+  let list = document.getElementById("chatList");
+  list.innerHTML="";
+
+  chats.forEach(c=>{
+
+    let d = document.createElement("div");
+    d.className="chatItem";
+    d.innerText="Chat "+c.id;
+
+    d.onclick=()=>{
+      chatAtual = c;
+      abrirChat();
+    };
+
+    list.appendChild(d);
+
+  });
+
+}
+
+/* ABRIR */
+function abrirChat(){
+
+  document.getElementById("home").style.display="none";
+  document.getElementById("chatArea").style.display="block";
+
+  toggleMenu();
+
+  mostrarMsgs();
+}
+
+/* MOSTRAR */
+function mostrarMsgs(){
+
+  let box = document.getElementById("msgs");
+  box.innerHTML="";
+
+  chatAtual.msgs.forEach(m=>{
+
+    box.innerHTML +=
+    `<p class="${m.t}">
+      <b>${m.u}:</b> ${m.txt}
+    </p>`;
+
+  });
+
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ENVIAR */
+async function enviar(){
+
+  let txt = input.value;
+
+  if(txt=="") return;
+
+  chatAtual.msgs.push({
+    u:"Você",
+    txt:txt,
+    t:"msgUser"
+  });
+
+  mostrarMsgs();
+
+  input.value="";
+
+  /* ====== API AQUI ====== */
+
+  let API_KEY = "AIzaSyA_nlQJuMCypTxG9XBQiWdBFwFfd1qVyXk;
+
+  try{
+
+    let r = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key="+API_KEY,
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          contents:[{
+            parts:[{text:txt}]
+          }]
+        })
+      }
+    );
+
+    let data = await r.json();
+
+    let resp =
+    data.candidates[0].content.parts[0].text;
+
+    chatAtual.msgs.push({
+      u:"IA",
+      txt:resp,
+      t:"msgAI"
+    });
+
+  }catch(e){
+
+    chatAtual.msgs.push({
+      u:"IA",
+      txt:"Erro na resposta 😢",
+      t:"msgAI"
+    });
+
+  }
+
+  salvar();
+  mostrarMsgs();
+}
+
+/* SALVAR */
+function salvar(){
+  localStorage.setItem("chats",JSON.stringify(chats));
+}
+
+</script>
+
+</body>
+  </html>
